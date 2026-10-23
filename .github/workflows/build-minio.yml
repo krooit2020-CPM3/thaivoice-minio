@@ -1,0 +1,45 @@
+name: Build MinIO
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .github/workflows/build-minio.yml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: |
+          docker build --platform linux/amd64 \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t ghcr.io/krooit2020-cpm3/thaivoice-minio:recovery .
+
+      - name: Check MinIO executable
+        run: |
+          docker run --rm \
+            ghcr.io/krooit2020-cpm3/thaivoice-minio:recovery \
+            minio --version
+
+      - name: Login to registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io \
+            -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push image
+        run: |
+          docker push ghcr.io/krooit2020-cpm3/thaivoice-minio:recovery
